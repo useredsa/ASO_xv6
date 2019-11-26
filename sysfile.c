@@ -73,21 +73,21 @@ sys_dup2(void)
   struct file *f2;
   int oldfd,newfd;
 
-  //Check if files descriptors are valid
+  // Check if files descriptors are valid
   if(argfd(0, &oldfd, &f1) < 0 || argint(1, &newfd) < 0 )
     return -1;
   if(newfd < 0 || newfd >= NOFILE)
     return -1;
 
-  //Check if they are the same
+  // Check if they are the same
   if(oldfd == newfd)
     return newfd;
 
   struct proc *curproc = myproc();
-  //Close the file descriptor if necessary
+  // Close the file descriptor if necessary
   if( (f2=curproc->ofile[newfd]) != 0){
-    curproc->ofile[newfd] = 0;
     fileclose(f2);
+    curproc->ofile[newfd] = 0;
   }
   
   // Allocate the file descriptor for the given file
