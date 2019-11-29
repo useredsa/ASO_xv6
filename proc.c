@@ -161,14 +161,21 @@ growproc(int n)
   uint sz;
   struct proc *curproc = myproc();
 
+  // Page allocation is performed on demand. This means that
+  // we will increase the process size but we will not allocate
+  // the pages until they are used. We will detect this situation
+  // after a page fault.
+  // TODO preguntar flores doble fallo y liberación de páginas reservadas bajo
+  // demanda
   sz = curproc->sz;
-  if(n > 0){
-    if((sz = allocuvm(curproc->pgdir, sz, sz + n)) == 0)
-      return -1;
-  } else if(n < 0){
+  if (n > 0){
+    //TODO check increased size is within limits
+    sz += n;
+  } else if (n < 0){
     if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
   }
+  //TODO update register cr3 to clear TLB ()
   curproc->sz = sz;
   switchuvm(curproc);
   return 0;

@@ -36,6 +36,7 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+  struct proc* curproc;
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
@@ -77,6 +78,45 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  
+  case T_PGFLT:   // Page fault
+    //TODO define constants
+    if ((tf->err & 1) == 0) {
+      // The page fault was caused by a non-present page
+      curproc = myproc();
+      if (curproc == 0 || (tf->cs&3) == 0) {
+        // In kernel, the fault could be caused because of the use of
+        // a user address not yet reserved or because of a failure.
+        if (rcr2() < curproc->sz) { //TODO possible refactor and move all page fault checks to vm.c
+          if (allocpgd(curproc->pgdir, rcr2()) == -1) {
+            cprintf("pid %d %s: page fault: couldn't get more memmory\n", curproc->pid, curproc->name);
+            curproc->killed = 1;
+          }
+          //lcr3(V2P(curproc->pgdir));
+          break;
+        }
+
+        cprintf("unexpected page fault eip %x (cr2=0x%x)\n", tf->eip, rcr2());
+        panic("fage fault");
+      }
+
+      // TODO modify copyuvm to erase the assert that states that all the user
+      // space is mapped
+      // TODO check case stack overflow
+
+      // In user space, validate the addr and reserve pages on demand
+      if (rcr2() < curproc->sz) {
+        if (allocpgd(curproc->pgdir, rcr2()) == -1) {
+          cprintf("pid %d %s: page fault: couldn't get more memmory\n",
+                  curproc->pid, curproc->name);
+          curproc->killed = 1;
+        }
+        //lcr3(V2P(curproc->pgdir));
+        break;
+      }
+    }
+    // Intentional non break. If the page was present in the TLB
+    // we either have an internal problem or a segmentation fault.
 
   //PAGEBREAK: 13
   default:

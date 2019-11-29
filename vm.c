@@ -216,8 +216,35 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
   return 0;
 }
 
+
+// Allocate a page on demand. va need not be page aligned.
+// Returns the new page table entry (0 on error).
+int
+allocpgd(pde_t* pgdir, uint va) {
+  char* mem;
+
+  // Reserve the physical memmory
+  mem = kalloc();
+  if (mem == 0) {
+    cprintf("allocpgd out of memmory\n");
+    return -1;
+  }
+
+  // Clear the page's content
+  memset(mem, 0, PGSIZE);
+
+  // Map the virtual address va to the new page
+  if (mappages(pgdir, (char *) PGROUNDDOWN(va), PGSIZE, V2P(mem), PTE_W|PTE_U) < 0) {
+    cprintf("allocpgd out of memmory to map pages\n");
+    kfree(mem);
+    return -1;
+  }
+  
+  return 0;
+}
+
 // Allocate page tables and physical memory to grow process from oldsz to
-// newsz, which need not be page aligned.  Returns new size or 0 on error.
+// newsz, which need not be page aligned. Returns new size or 0 on error.
 int
 allocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
@@ -323,10 +350,14 @@ copyuvm(pde_t *pgdir, uint sz)
   if((d = setupkvm()) == 0)
     return 0;
   for(i = 0; i < sz; i += PGSIZE){
+    // Pages need not be already reserved when doing
+    // reserve on demand
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
+      //panic("copyuvm: pte should exist");
+      continue;
     if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
+      //panic("copyuvm: page not present");
+      continue;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
