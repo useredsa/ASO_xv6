@@ -165,19 +165,18 @@ growproc(int n)
   // we will increase the process size but we will not allocate
   // the pages until they are used. We will detect this situation
   // after a page fault.
-  // TODO preguntar flores doble fallo y liberación de páginas reservadas bajo
-  // demanda
   sz = curproc->sz;
   if (n > 0){
-    //TODO check increased size is within limits
+    if (sz + n >= KERNBASE)
+      return 0;
     sz += n;
   } else if (n < 0){
     if((sz = deallocuvm(curproc->pgdir, sz, sz + n)) == 0)
       return -1;
+    //This updates register cr3 and clears TLB
+    switchuvm(curproc);
   }
-  //TODO update register cr3 to clear TLB ()
   curproc->sz = sz;
-  switchuvm(curproc);
   return 0;
 }
 

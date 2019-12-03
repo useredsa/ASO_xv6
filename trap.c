@@ -80,43 +80,29 @@ trap(struct trapframe *tf)
     break;
   
   case T_PGFLT:   // Page fault
-    //TODO define constants
-    if ((tf->err & 1) == 0) {
-      // The page fault was caused by a non-present page
-      curproc = myproc();
-      if (curproc == 0 || (tf->cs&3) == 0) {
-        // In kernel, the fault could be caused because of the use of
-        // a user address not yet reserved or because of a failure.
-        if (rcr2() < curproc->sz) { //TODO possible refactor and move all page fault checks to vm.c
-          if (allocpgd(curproc->pgdir, rcr2()) == -1) {
-            cprintf("pid %d %s: page fault: couldn't get more memmory\n", curproc->pid, curproc->name);
-            curproc->killed = 1;
-          }
-          //lcr3(V2P(curproc->pgdir));
-          break;
-        }
-
-        cprintf("unexpected page fault eip %x (cr2=0x%x)\n", tf->eip, rcr2());
-        panic("fage fault");
-      }
-
-      // TODO modify copyuvm to erase the assert that states that all the user
-      // space is mapped
-      // TODO check case stack overflow
-
-      // In user space, validate the addr and reserve pages on demand
-      if (rcr2() < curproc->sz) {
-        if (allocpgd(curproc->pgdir, rcr2()) == -1) {
-          cprintf("pid %d %s: page fault: couldn't get more memmory\n",
+    curproc = myproc();
+    if ((tf->err & 0x01) == 0 && rcr2() < curproc->sz) {
+      // If the page fault was caused by a non-present page and the address
+      // belongs to the process, it must be a non-allocated page
+      // (pages are allocated on demand)
+      if (allocpgd(curproc->pgdir, rcr2()) == -1) {
+          cprintf("pid %d %s: page allocation: couldn't get more memmory\n",
                   curproc->pid, curproc->name);
           curproc->killed = 1;
-        }
-        //lcr3(V2P(curproc->pgdir));
-        break;
       }
+      break;
     }
-    // Intentional non break. If the page was present in the TLB
-    // we either have an internal problem or a segmentation fault.
+
+    // Otherwise, either it was our fault or user's fault
+    if (curproc == 0 || (tf->cs&3) == 0) {
+      // In kernel, assume something went wrong
+      panic("fage fault");
+    }
+    cprintf("pid %d %s: segmentation fault from cpu %d eip %x (cr2=0x%x)\n",
+              tf->trapno, cpuid(), tf->eip, rcr2());
+    curproc->killed = 1;
+    break;
+    
 
   //PAGEBREAK: 13
   default:
