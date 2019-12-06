@@ -96,7 +96,7 @@ trap(struct trapframe *tf)
     // Otherwise, either it was our fault or user's fault
     if (curproc == 0 || (tf->cs&3) == 0) {
       // In kernel, assume something went wrong
-      panic("fage fault");
+      panic("page fault");
     }
     cprintf("pid %d %s: segmentation fault from cpu %d eip %x (cr2=0x%x)\n",
               tf->trapno, cpuid(), tf->eip, rcr2());
