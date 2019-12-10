@@ -218,7 +218,7 @@ loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)
 
 
 // Allocate a page on demand. va need not be page aligned.
-// Returns the new page table entry (0 on error).
+// Returns the new page table entry (-1 on error).
 int
 allocpgd(pde_t* pgdir, uint va) {
   char* mem;
